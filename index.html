@@ -66,6 +66,23 @@
                     <button id="backToListBtn">← Back to List</button>
                     <div class="progression-header">
                         <h2 id="currentProgressionName">Select a progression</h2>
+                        <div class="transpose-controls">
+                            <label for="transposeKeySelect">Transpose to:</label>
+                            <select id="transposeKeySelect">
+                                <option value="C">C</option>
+                                <option value="C#">C#</option>
+                                <option value="D">D</option>
+                                <option value="D#">D#</option>
+                                <option value="E">E</option>
+                                <option value="F">F</option>
+                                <option value="F#">F#</option>
+                                <option value="G">G</option>
+                                <option value="G#">G#</option>
+                                <option value="A">A</option>
+                                <option value="A#">A#</option>
+                                <option value="B">B</option>
+                            </select>
+                        </div>
                         <div class="view-toggles">
                             <button id="chordsToggle" class="active">Chords</button>
                             <button id="romanToggle">Roman</button>
@@ -105,6 +122,12 @@
                     <div class="strumming-section collapsible">
                         <h3>Strumming Pattern</h3>
                         <div class="collapsible-content">
+                            <div class="pattern-controls">
+                                <label for="strummingSectionSelect">Select Pattern:</label>
+                                <select id="strummingSectionSelect">
+                                    <option value="">Select Strumming Pattern</option>
+                                </select>
+                            </div>
                             <div class="pattern-actions">
                                 <button id="exportStrummingBtn">Export Strumming CSV</button>
                                 <input type="file" id="importStrummingFile" accept=".csv" style="display: none;">
@@ -116,6 +139,12 @@
                     <div class="picking-section collapsible">
                         <h3>Picking Pattern</h3>
                         <div class="collapsible-content">
+                            <div class="pattern-controls">
+                                <label for="pickingSectionSelect">Select Pattern:</label>
+                                <select id="pickingSectionSelect">
+                                    <option value="">Select Picking Pattern</option>
+                                </select>
+                            </div>
                             <div class="pattern-actions">
                                 <button id="exportPickingBtn">Export Picking CSV</button>
                                 <input type="file" id="importPickingFile" accept=".csv" style="display: none;">
@@ -189,6 +218,10 @@
                         <input type="number" id="endFret" value="15" min="1" max="24">
                         <label for="cycleSeconds">Cycle Chords (s):</label>
                         <input type="number" id="cycleSeconds" value="30" min="1" max="300">
+                    </div>
+                    <div class="chord-cycle-controls">
+                        <button id="playCycleBtn">Play Chord Cycle</button>
+                        <button id="stopCycleBtn" style="display: none;">Stop Cycle</button>
                     </div>
                     <div class="fretboard-actions">
                         <button id="exportScalesBtn">Export Scales CSV</button>

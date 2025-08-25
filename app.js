@@ -44,6 +44,7 @@ class ChordProgressionApp {
     
     initializeElements() {
         this.keySelect = document.getElementById('keySelect');
+        this.transposeKeySelect = document.getElementById('transposeKeySelect');
         this.categorySelect = document.getElementById('categorySelect');
         this.searchInput = document.getElementById('searchInput');
         this.progressionContainer = document.getElementById('progressionContainer');
@@ -55,6 +56,8 @@ class ChordProgressionApp {
         this.intervalsToggle = document.getElementById('intervalsToggle');
         this.strummingSelect = document.getElementById('strummingSelect');
         this.pickingSelect = document.getElementById('pickingSelect');
+        this.strummingSectionSelect = document.getElementById('strummingSectionSelect');
+        this.pickingSectionSelect = document.getElementById('pickingSectionSelect');
         this.chordInput = document.getElementById('chordInput');
         this.customChordsList = document.getElementById('customChordsList');
 
@@ -86,6 +89,10 @@ class ChordProgressionApp {
         this.audioRecording = document.getElementById('audioRecording');
         this.videoRecording = document.getElementById('videoRecording');
         this.cycleSecondsInput = document.getElementById('cycleSeconds');
+        
+        // Chord cycle control elements
+        this.playCycleBtn = document.getElementById('playCycleBtn');
+        this.stopCycleBtn = document.getElementById('stopCycleBtn');
     }
     
     setupCollapsibleSections() {
@@ -114,20 +121,30 @@ class ChordProgressionApp {
     }
 
     populateStrummingPatterns() {
-        Object.keys(strummingPatterns).forEach(patternKey => {
-            const option = document.createElement('option');
-            option.value = patternKey;
-            option.textContent = strummingPatterns[patternKey].name;
-            this.strummingSelect.appendChild(option);
+        const selects = [this.strummingSelect, this.strummingSectionSelect];
+        selects.forEach(select => {
+            if (select) {
+                Object.keys(strummingPatterns).forEach(patternKey => {
+                    const option = document.createElement('option');
+                    option.value = patternKey;
+                    option.textContent = strummingPatterns[patternKey].name;
+                    select.appendChild(option);
+                });
+            }
         });
     }
 
     populatePickingPatterns() {
-        Object.keys(pickingPatterns).forEach(patternKey => {
-            const option = document.createElement('option');
-            option.value = patternKey;
-            option.textContent = pickingPatterns[patternKey].name;
-            this.pickingSelect.appendChild(option);
+        const selects = [this.pickingSelect, this.pickingSectionSelect];
+        selects.forEach(select => {
+            if (select) {
+                Object.keys(pickingPatterns).forEach(patternKey => {
+                    const option = document.createElement('option');
+                    option.value = patternKey;
+                    option.textContent = pickingPatterns[patternKey].name;
+                    select.appendChild(option);
+                });
+            }
         });
     }
 
@@ -201,6 +218,17 @@ class ChordProgressionApp {
             }
         });
 
+        // Chord cycle control listeners
+        this.playCycleBtn.addEventListener('click', () => {
+            if (this.currentProgression) {
+                this.startChordCycling(this.currentProgression);
+            }
+        });
+        
+        this.stopCycleBtn.addEventListener('click', () => {
+            this.stopChordCycling();
+        });
+
         document.getElementById('backToListBtn').addEventListener('click', () => {
             document.body.classList.remove('mobile-details-visible');
         });
@@ -223,6 +251,12 @@ class ChordProgressionApp {
             document.getElementById('importPickingFile').click();
         });
         document.getElementById('importPickingFile').addEventListener('change', (e) => this.importPickingPatternsFromCSV(e));
+        
+        // Add missing import chords CSV event listener
+        document.getElementById('importChordsBtn').addEventListener('click', () => {
+            document.getElementById('importChordsFile').click();
+        });
+        document.getElementById('importChordsFile').addEventListener('change', (e) => this.importChordsFromCSV(e));
     }
 
     updateScaleInfoSection() {
@@ -469,7 +503,21 @@ class ChordProgressionApp {
     setupEventListeners() {
         this.keySelect.addEventListener('change', (e) => {
             this.currentKey = e.target.value;
+            this.transposeKeySelect.value = this.currentKey; // Sync transpose selector
             this.updateCurrentProgression();
+        });
+        
+        // Add transpose key change listener
+        this.transposeKeySelect.addEventListener('change', (e) => {
+            this.currentKey = e.target.value;
+            this.keySelect.value = this.currentKey; // Sync main key selector
+            this.updateCurrentProgression();
+            
+            // If chord cycling is active, restart it with the new key
+            if (this.chordCycleTimer && this.currentProgression) {
+                this.stopChordCycling();
+                this.startChordCycling(this.currentProgression);
+            }
         });
         
         this.categorySelect.addEventListener('change', (e) => {
@@ -486,13 +534,36 @@ class ChordProgressionApp {
         
         this.strummingSelect.addEventListener('change', (e) => {
             this.currentStrummingPattern = e.target.value;
+            if (this.strummingSectionSelect) {
+                this.strummingSectionSelect.value = e.target.value;
+            }
             this.updateStrummingDisplay();
         });
 
         this.pickingSelect.addEventListener('change', (e) => {
             this.currentPickingPattern = e.target.value;
+            if (this.pickingSectionSelect) {
+                this.pickingSectionSelect.value = e.target.value;
+            }
             this.updatePickingDisplay();
         });
+        
+        // Section dropdown listeners
+        if (this.strummingSectionSelect) {
+            this.strummingSectionSelect.addEventListener('change', (e) => {
+                this.currentStrummingPattern = e.target.value;
+                this.strummingSelect.value = e.target.value;
+                this.updateStrummingDisplay();
+            });
+        }
+        
+        if (this.pickingSectionSelect) {
+            this.pickingSectionSelect.addEventListener('change', (e) => {
+                this.currentPickingPattern = e.target.value;
+                this.pickingSelect.value = e.target.value;
+                this.updatePickingDisplay();
+            });
+        }
 
         // View control listeners
         this.groupedViewBtn.addEventListener('click', () => this.setView('grouped'));
@@ -1402,14 +1473,18 @@ class ChordProgressionApp {
         this.currentProgression = progression;
         this.currentProgressionName.textContent = progression.name;
         this.customChords = [...progression.chords]; // Copy chords to custom list
+        
+        // Sync transpose selector with current key
+        this.transposeKeySelect.value = this.currentKey;
+        
         this.renderCustomChords();
         this.updateCurrentProgression();
         
         // Switch to details view on mobile
         document.body.classList.add('mobile-details-visible');
         
-        // Start chord cycling in scale explorer
-        this.startChordCycling(progression);
+        // Show play button for chord cycling
+        this.playCycleBtn.style.display = 'inline-block';
     }
     
     startChordCycling(progression) {
@@ -1435,6 +1510,10 @@ class ChordProgressionApp {
             this.currentChordIndex = (this.currentChordIndex + 1) % this.cyclingChords.length;
             this.displayCurrentCyclingChord();
         }, cycleDurationMs);
+        
+        // Update button visibility
+        this.playCycleBtn.style.display = 'none';
+        this.stopCycleBtn.style.display = 'inline-block';
     }
     
     stopChordCycling() {
@@ -1443,6 +1522,10 @@ class ChordProgressionApp {
             this.chordCycleTimer = null;
         }
         this.hideChordCyclingIndicator();
+        
+        // Update button visibility
+        this.playCycleBtn.style.display = 'inline-block';
+        this.stopCycleBtn.style.display = 'none';
     }
     
     restartChordCycling() {
@@ -1588,8 +1671,9 @@ class ChordProgressionApp {
         
         if (chordsToDisplay.length === 0) return;
         
+        // Always transpose chords to the current key
         const transposedChords = chordsToDisplay.map(chord => 
-            this.customChords.length > 0 ? chord : transposeChord(chord, 'C', this.currentKey)
+            transposeChord(chord, 'C', this.currentKey)
         );
         
         const chordSequence = document.createElement('div');
@@ -1630,8 +1714,9 @@ class ChordProgressionApp {
         
         if (chordsToDisplay.length === 0) return;
         
+        // Always transpose chords to the current key
         const transposedChords = chordsToDisplay.map(chord => 
-            this.customChords.length > 0 ? chord : transposeChord(chord, 'C', this.currentKey)
+            transposeChord(chord, 'C', this.currentKey)
         );
         
         this.diagramsContainer.innerHTML = '';

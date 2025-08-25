@@ -902,6 +902,84 @@ select, input {
     100% { opacity: 1; }
 }
 
+.transpose-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.transpose-controls label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.transpose-controls select {
+    min-width: 80px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    color: #495057;
+}
+
+.pattern-controls {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pattern-controls label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.pattern-controls select {
+    min-width: 180px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    color: #495057;
+}
+
+.chord-cycle-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.chord-cycle-controls button {
+    padding: 8px 16px;
+    border: 1px solid #28a745;
+    background: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.chord-cycle-controls button:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}
+
+#stopCycleBtn {
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+#stopCycleBtn:hover {
+    background: #c82333;
+    border-color: #bd2130;
+}
+
 @media (max-width: 900px) {
     body.mobile-details-visible .progression-list {
         display: none;
@@ -941,6 +1019,19 @@ select, input {
     .progression-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .transpose-controls {
+        order: 1;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .view-toggles {
+        order: 2;
+        width: 100%;
+        justify-content: flex-start;
     }
     
     .chord-sequence {
