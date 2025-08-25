@@ -9,6 +9,9 @@
     <div class="app-container">
         <header>
             <h1>Guitar Chord Progression Hub</h1>
+            <nav>
+                <a href="chord-library.html" class="nav-link">Chord Diagram Library</a>
+            </nav>
             <div class="controls">
                 <select id="keySelect">
                     <option value="C">C</option>
@@ -43,7 +46,7 @@
         <main>
             <div class="content-grid">
                 <div class="progression-list collapsible">
-                    <h2>Progressions</h2>
+                    <h2>Progressions <button class="close-section-btn" id="closeProgressionsBtn" title="Close Progressions section">×</button></h2>
                     <div class="collapsible-content">
                         <div class="progression-controls">
                             <div class="view-options">
@@ -95,7 +98,7 @@
                     </div>
 
                     <div class="chord-editor collapsible">
-                        <h3>Edit Progression</h3>
+                        <h3>Edit Progression <button class="delete-section-btn" id="deleteEditBtn" title="Delete Edit Progression section">×</button></h3>
                         <div class="collapsible-content">
                             <div class="chord-input-section">
                                 <input type="text" id="chordInput" placeholder="Add chord (e.g., Am, F7, Gsus4)">
@@ -113,14 +116,29 @@
                     </div>
 
                     <div class="chord-diagrams collapsible">
-                        <h3>Chord Diagrams</h3>
+                        <h3>Chord Diagrams <button class="close-section-btn" id="closeChordDiagramsBtn" title="Close Chord Diagrams section">×</button></h3>
                         <div class="collapsible-content">
                             <div id="diagramsContainer"></div>
                         </div>
                     </div>
                     
+                    <div class="chord-playback collapsible">
+                        <h3>Chord Playback</h3>
+                        <div class="collapsible-content">
+                            <div class="playback-controls">
+                                <button id="playProgressionBtn">Play Progression</button>
+                                <button id="stopProgressionBtn" style="display: none;">Stop</button>
+                                <label for="playbackTempo">Tempo (BPM):</label>
+                                <input type="number" id="playbackTempo" value="120" min="60" max="200">
+                                <label for="chordDuration">Chord Duration (beats):</label>
+                                <input type="number" id="chordDuration" value="4" min="1" max="8">
+                            </div>
+                            <div id="playbackStatus">Select a progression to play</div>
+                        </div>
+                    </div>
+                    
                     <div class="strumming-section collapsible">
-                        <h3>Strumming Pattern</h3>
+                        <h3>Strumming Pattern <button class="delete-section-btn" id="deleteStrummingBtn" title="Delete Strumming Pattern section">×</button></h3>
                         <div class="collapsible-content">
                             <div class="pattern-controls">
                                 <label for="strummingSectionSelect">Select Pattern:</label>
@@ -137,7 +155,7 @@
                         </div>
                     </div>
                     <div class="picking-section collapsible">
-                        <h3>Picking Pattern</h3>
+                        <h3>Picking Pattern <button class="delete-section-btn" id="deletePickingBtn" title="Delete Picking Pattern section">×</button></h3>
                         <div class="collapsible-content">
                             <div class="pattern-controls">
                                 <label for="pickingSectionSelect">Select Pattern:</label>
@@ -157,7 +175,7 @@
             </div>
 
             <div class="recording-section collapsible">
-                <h2>Record Audio & Video</h2>
+                <h2>Record Audio & Video <button class="close-section-btn" id="closeRecordingBtn" title="Close Recording section">×</button></h2>
                 <div class="collapsible-content">
                     <div class="recording-tabs">
                         <button id="audioTabBtn" class="active">Audio</button>
@@ -190,7 +208,7 @@
             </div>
 
             <div class="fretboard-explorer collapsible collapsed">
-                <h2>Scale Explorer</h2>
+                <h2>Scale Explorer <button class="close-section-btn" id="closeScaleExplorerBtn" title="Close Scale Explorer section">×</button></h2>
                 <div class="collapsible-content">
                     <div class="fretboard-controls">
                         <label for="fretboardKeySelect">Key:</label>
@@ -232,6 +250,10 @@
                 </div>
             </div>
         </main>
+        
+        <div class="reset-controls">
+            <button id="resetSectionsBtn" class="reset-sections-btn">Reset All Sections</button>
+        </div>
     </div>
 
     <script type="module" src="app.js"></script>

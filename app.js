@@ -32,6 +32,12 @@ class ChordProgressionApp {
         this.currentChordIndex = 0;
         this.cyclingChords = [];
         
+        // Audio playback properties
+        this.audioContext = null;
+        this.progressionTimer = null;
+        this.isPlayingProgression = false;
+        this.currentPlaybackChordIndex = 0;
+        
         this.initializeElements();
         this.setupEventListeners();
         this.populateCategories();
@@ -93,6 +99,25 @@ class ChordProgressionApp {
         // Chord cycle control elements
         this.playCycleBtn = document.getElementById('playCycleBtn');
         this.stopCycleBtn = document.getElementById('stopCycleBtn');
+        
+        // Delete button elements
+        this.deleteEditBtn = document.getElementById('deleteEditBtn');
+        this.deleteStrummingBtn = document.getElementById('deleteStrummingBtn');
+        this.deletePickingBtn = document.getElementById('deletePickingBtn');
+        
+        // Close button elements
+        this.closeProgressionsBtn = document.getElementById('closeProgressionsBtn');
+        this.closeChordDiagramsBtn = document.getElementById('closeChordDiagramsBtn');
+        this.closeScaleExplorerBtn = document.getElementById('closeScaleExplorerBtn');
+        this.closeRecordingBtn = document.getElementById('closeRecordingBtn');
+        this.resetSectionsBtn = document.getElementById('resetSectionsBtn');
+        
+        // Playback elements
+        this.playProgressionBtn = document.getElementById('playProgressionBtn');
+        this.stopProgressionBtn = document.getElementById('stopProgressionBtn');
+        this.playbackTempo = document.getElementById('playbackTempo');
+        this.chordDuration = document.getElementById('chordDuration');
+        this.playbackStatus = document.getElementById('playbackStatus');
     }
     
     setupCollapsibleSections() {
@@ -105,6 +130,150 @@ class ChordProgressionApp {
                 });
             }
         });
+        
+        // Initialize drag and drop for sections
+        this.initializeDragAndDrop();
+    }
+    
+    initializeDragAndDrop() {
+        // Add drag handles and make sections draggable
+        const draggableSections = document.querySelectorAll('.progression-details > .collapsible, .fretboard-explorer, .recording-section');
+        
+        draggableSections.forEach((section, index) => {
+            section.draggable = true;
+            section.dataset.originalIndex = index;
+            
+            // Add drag handle
+            const header = section.querySelector('h2, h3');
+            if (header) {
+                header.classList.add('drag-handle');
+                header.style.cursor = 'grab';
+            }
+            
+            // Add drag event listeners
+            section.addEventListener('dragstart', this.handleDragStart.bind(this));
+            section.addEventListener('dragover', this.handleDragOver.bind(this));
+            section.addEventListener('drop', this.handleDrop.bind(this));
+            section.addEventListener('dragend', this.handleDragEnd.bind(this));
+        });
+        
+        // Also make the main content grid sections draggable
+        const mainSections = document.querySelectorAll('.progression-list, .fretboard-explorer, .recording-section');
+        mainSections.forEach((section, index) => {
+            section.draggable = true;
+            section.dataset.originalIndex = index + 100; // Different range to avoid conflicts
+            
+            const header = section.querySelector('h2');
+            if (header) {
+                header.classList.add('drag-handle');
+                header.style.cursor = 'grab';
+            }
+            
+            section.addEventListener('dragstart', this.handleDragStart.bind(this));
+            section.addEventListener('dragover', this.handleDragOver.bind(this));
+            section.addEventListener('drop', this.handleDrop.bind(this));
+            section.addEventListener('dragend', this.handleDragEnd.bind(this));
+        });
+    }
+    
+    handleDragStart(e) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+        e.target.classList.add('dragging');
+        e.target.style.opacity = '0.5';
+    }
+    
+    handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+    
+    handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        const draggedElement = document.querySelector('.dragging');
+        if (draggedElement && draggedElement !== e.target) {
+            const parent = draggedElement.parentNode;
+            
+            // Find the actual target element that can accept drops
+            let targetElement = e.target;
+            while (targetElement && !targetElement.draggable && targetElement.parentNode) {
+                targetElement = targetElement.parentNode;
+            }
+            
+            // If we couldn't find a draggable target, use the closest valid container
+            if (!targetElement || !targetElement.draggable) {
+                targetElement = e.target.closest('.draggable-container, .content-grid, main, .progression-details');
+            }
+            
+            if (targetElement && targetElement !== draggedElement) {
+                const targetParent = targetElement.parentNode;
+                
+                // Only allow dropping in the same container or compatible containers
+                if (parent === targetParent || this.isCompatibleContainer(parent, targetParent)) {
+                    try {
+                        // Check if targetElement is actually a child of targetParent
+                        if (targetParent.contains(targetElement)) {
+                            const rect = targetElement.getBoundingClientRect();
+                            const midpoint = rect.top + rect.height / 2;
+                            
+                            if (e.clientY < midpoint) {
+                                // Insert before the target element
+                                targetParent.insertBefore(draggedElement, targetElement);
+                            } else {
+                                // Insert after the target element
+                                if (targetElement.nextSibling) {
+                                    targetParent.insertBefore(draggedElement, targetElement.nextSibling);
+                                } else {
+                                    targetParent.appendChild(draggedElement);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Drop operation failed:', error);
+                        // Fallback: just append to the parent
+                        if (parent === targetParent) {
+                            parent.appendChild(draggedElement);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        e.target.style.opacity = '';
+        
+        // Reset cursor on headers
+        const header = e.target.querySelector('h2, h3');
+        if (header) {
+            header.style.cursor = 'grab';
+        }
+    }
+    
+    isCompatibleContainer(source, target) {
+        // Define which containers are compatible for dropping
+        const compatibleContainers = [
+            ['.progression-details', '.content-grid', 'main'],
+            ['.content-grid', 'main'],
+            ['main']
+        ];
+        
+        const sourceClass = source.className;
+        const targetClass = target.className;
+        
+        return compatibleContainers.some(group => 
+            group.some(cls => sourceClass.includes(cls.replace('.', ''))) &&
+            group.some(cls => targetClass.includes(cls.replace('.', '')))
+        );
     }
 
     populateCategories() {
@@ -162,7 +331,7 @@ class ChordProgressionApp {
     
     createScaleInfoSection() {
         const scaleInfoSection = document.createElement('div');
-        scaleInfoSection.className = 'scale-info-section collapsible';
+        scaleInfoSection.className = 'scale-info-section collapsible collapsed';
         scaleInfoSection.innerHTML = `
             <h3>Scale/Chord Information</h3>
             <div class="collapsible-content">
@@ -257,6 +426,95 @@ class ChordProgressionApp {
             document.getElementById('importChordsFile').click();
         });
         document.getElementById('importChordsFile').addEventListener('change', (e) => this.importChordsFromCSV(e));
+        
+        // Delete section event listeners
+        this.deleteEditBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.deleteSection('chord-editor');
+        });
+        
+        this.deleteStrummingBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.deleteSection('strumming-section');
+        });
+        
+        this.deletePickingBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.deleteSection('picking-section');
+        });
+        
+        // Close section event listeners
+        this.closeProgressionsBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.closeSection('progression-list');
+        });
+        
+        this.closeChordDiagramsBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.closeSection('chord-diagrams');
+        });
+        
+        this.closeScaleExplorerBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.closeSection('fretboard-explorer');
+        });
+        
+        this.closeRecordingBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent collapsible toggle
+            this.closeSection('recording-section');
+        });
+        
+        // Reset sections event listener
+        this.resetSectionsBtn.addEventListener('click', () => {
+            this.resetAllSections();
+        });
+        
+        // Playback event listeners
+        this.playProgressionBtn.addEventListener('click', () => {
+            this.startProgressionPlayback();
+        });
+        
+        this.stopProgressionBtn.addEventListener('click', () => {
+            this.stopProgressionPlayback();
+        });
+    }
+
+    deleteSection(sectionClass) {
+        const section = document.querySelector(`.${sectionClass}`);
+        if (section && confirm(`Are you sure you want to delete this section? This action cannot be undone.`)) {
+            section.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                section.remove();
+            }, 300);
+        }
+    }
+    
+    closeSection(sectionClass) {
+        const section = document.querySelector(`.${sectionClass}`);
+        if (section && confirm(`Are you sure you want to close this section?`)) {
+            section.classList.add('section-closed');
+            this.showResetButton();
+        }
+    }
+    
+    showResetButton() {
+        const resetControls = document.querySelector('.reset-controls');
+        if (resetControls) {
+            resetControls.style.display = 'block';
+        }
+    }
+    
+    resetAllSections() {
+        // Show all sections by removing the 'section-closed' class
+        document.querySelectorAll('.section-closed').forEach(section => {
+            section.classList.remove('section-closed');
+        });
+        
+        // Hide the reset button
+        const resetControls = document.querySelector('.reset-controls');
+        if (resetControls) {
+            resetControls.style.display = 'none';
+        }
     }
 
     updateScaleInfoSection() {
@@ -1619,7 +1877,277 @@ class ChordProgressionApp {
             indicator.textContent = `Cycling chord ${currentIndex}/${totalChords}: ${currentChord} (changes every ${cycleDurationSeconds} seconds)`;
         }
     }
-
+    
+    // Audio playback methods
+    async startProgressionPlayback() {
+        // Use custom chords if available, otherwise use current progression
+        const chordsToPlay = this.customChords.length > 0 ? this.customChords : 
+            (this.currentProgression ? this.currentProgression.chords : []);
+        
+        if (chordsToPlay.length === 0) {
+            this.playbackStatus.textContent = 'No progression selected';
+            return;
+        }
+        
+        // Initialize audio context if needed
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+        
+        // Always transpose chords to the current key
+        const transposedChords = chordsToPlay.map(chord => 
+            transposeChord(chord, 'C', this.currentKey)
+        );
+        
+        this.isPlayingProgression = true;
+        this.currentPlaybackChordIndex = 0;
+        
+        // Update UI
+        this.playProgressionBtn.style.display = 'none';
+        this.stopProgressionBtn.style.display = 'inline-block';
+        
+        // Play first chord immediately
+        this.playCurrentChord(transposedChords);
+        
+        // Calculate timing
+        const tempo = parseInt(this.playbackTempo.value, 10) || 120;
+        const duration = parseInt(this.chordDuration.value, 10) || 4;
+        const beatDuration = (60 / tempo) * 1000; // ms per beat
+        const chordDuration = beatDuration * duration;
+        
+        // Start progression timer
+        this.progressionTimer = setInterval(() => {
+            if (!this.isPlayingProgression) return;
+            
+            this.currentPlaybackChordIndex = (this.currentPlaybackChordIndex + 1) % transposedChords.length;
+            this.playCurrentChord(transposedChords);
+        }, chordDuration);
+    }
+    
+    stopProgressionPlayback() {
+        this.isPlayingProgression = false;
+        
+        if (this.progressionTimer) {
+            clearInterval(this.progressionTimer);
+            this.progressionTimer = null;
+        }
+        
+        // Update UI
+        this.playProgressionBtn.style.display = 'inline-block';
+        this.stopProgressionBtn.style.display = 'none';
+        this.playbackStatus.textContent = 'Playback stopped';
+    }
+    
+    playCurrentChord(chords) {
+        if (!this.audioContext || !this.isPlayingProgression) return;
+        
+        const currentChord = chords[this.currentPlaybackChordIndex];
+        this.playbackStatus.textContent = `Playing: ${currentChord} (${this.currentPlaybackChordIndex + 1}/${chords.length})`;
+        
+        // Get chord notes
+        const chordNotes = this.getChordNotes(currentChord);
+        if (chordNotes.length === 0) return;
+        
+        // Play chord
+        this.synthesizeChord(chordNotes);
+    }
+    
+    getChordNotes(chordName) {
+        const noteFrequencies = {
+            'C': 261.63, 'C#': 277.18, 'Db': 277.18,
+            'D': 293.66, 'D#': 311.13, 'Eb': 311.13,
+            'E': 329.63,
+            'F': 349.23, 'F#': 369.99, 'Gb': 369.99,
+            'G': 392.00, 'G#': 415.30, 'Ab': 415.30,
+            'A': 440.00, 'A#': 466.16, 'Bb': 466.16,
+            'B': 493.88
+        };
+        
+        // Parse chord to extract root and quality
+        const rootMatch = chordName.match(/^([A-G][#b]?)(.*?)(?:\/.*)?$/);
+        if (!rootMatch) return [];
+        
+        const root = rootMatch[1];
+        const quality = rootMatch[2] || '';
+        
+        const rootFreq = noteFrequencies[root];
+        if (!rootFreq) return [];
+        
+        // Basic chord intervals (simplified)
+        const chordIntervals = {
+            '': [0, 4, 7], // Major
+            'm': [0, 3, 7], // Minor
+            '7': [0, 4, 7, 10], // Dominant 7
+            'M7': [0, 4, 7, 11], // Major 7
+            'm7': [0, 3, 7, 10], // Minor 7
+            'dim': [0, 3, 6], // Diminished
+            'aug': [0, 4, 8], // Augmented
+            'sus4': [0, 5, 7], // Sus4
+            'sus2': [0, 2, 7], // Sus2
+            'add9': [0, 4, 7, 14], // Add9
+            '6': [0, 4, 7, 9], // Major 6
+            'm6': [0, 3, 7, 9] // Minor 6
+        };
+        
+        const intervals = chordIntervals[quality] || chordIntervals[''];
+        
+        return intervals.map(interval => {
+            const semitones = interval;
+            return rootFreq * Math.pow(2, semitones / 12);
+        });
+    }
+    
+    synthesizeChord(frequencies) {
+        if (!this.audioContext) return;
+        
+        const now = this.audioContext.currentTime;
+        const attackTime = 0.3;
+        const decayTime = 0.2;
+        const releaseTime = 1.2;
+        const sustainTime = 1.0;
+        const sustainLevel = 0.4;
+        
+        frequencies.forEach((freq, index) => {
+            // Create multiple oscillators per note for richness
+            const oscillators = [];
+            const gains = [];
+            
+            // Main oscillator (saw wave for richness)
+            const osc1 = this.audioContext.createOscillator();
+            const gain1 = this.audioContext.createGain();
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(freq, now);
+            
+            // Sub oscillator (sine wave one octave down)
+            const osc2 = this.audioContext.createOscillator();
+            const gain2 = this.audioContext.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 0.5, now);
+            
+            // Detuned oscillator (triangle wave slightly detuned)
+            const osc3 = this.audioContext.createOscillator();
+            const gain3 = this.audioContext.createGain();
+            osc3.type = 'triangle';
+            osc3.frequency.setValueAtTime(freq * 1.007, now); // Slightly detuned
+            
+            oscillators.push(osc1, osc2, osc3);
+            gains.push(gain1, gain2, gain3);
+            
+            // Create filter for warmth
+            const filter = this.audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, now);
+            filter.Q.setValueAtTime(1.5, now);
+            
+            // Add subtle filter envelope
+            filter.frequency.setValueAtTime(800, now);
+            filter.frequency.linearRampToValueAtTime(1200, now + attackTime);
+            filter.frequency.linearRampToValueAtTime(1000, now + attackTime + decayTime);
+            filter.frequency.setValueAtTime(1000, now + attackTime + decayTime + sustainTime);
+            filter.frequency.linearRampToValueAtTime(800, now + attackTime + decayTime + sustainTime + releaseTime);
+            
+            // Create reverb/delay effect
+            const delayNode = this.audioContext.createDelay(0.3);
+            delayNode.delayTime.setValueAtTime(0.15, now);
+            
+            const delayGain = this.audioContext.createGain();
+            delayGain.gain.setValueAtTime(0.2, now);
+            
+            const masterGain = this.audioContext.createGain();
+            
+            // Connect oscillators with different gain levels
+            osc1.connect(gain1);
+            gain1.connect(filter);
+            gain1.gain.setValueAtTime(0.4, now); // Main oscillator
+            
+            osc2.connect(gain2);
+            gain2.connect(filter);
+            gain2.gain.setValueAtTime(0.3, now); // Sub oscillator
+            
+            osc3.connect(gain3);
+            gain3.connect(filter);
+            gain3.gain.setValueAtTime(0.2, now); // Detuned oscillator
+            
+            // Set up reverb/delay feedback
+            filter.connect(masterGain);
+            filter.connect(delayNode);
+            delayNode.connect(delayGain);
+            delayGain.connect(delayNode); // Feedback
+            delayGain.connect(masterGain);
+            
+            masterGain.connect(this.audioContext.destination);
+            
+            // ADSR envelope
+            masterGain.gain.setValueAtTime(0, now);
+            masterGain.gain.linearRampToValueAtTime(0.15, now + attackTime); // Attack
+            masterGain.gain.linearRampToValueAtTime(sustainLevel * 0.15, now + attackTime + decayTime); // Decay
+            masterGain.gain.setValueAtTime(sustainLevel * 0.15, now + attackTime + decayTime + sustainTime); // Sustain
+            masterGain.gain.linearRampToValueAtTime(0, now + attackTime + decayTime + sustainTime + releaseTime); // Release
+            
+            // Start all oscillators
+            oscillators.forEach(osc => {
+                osc.start(now);
+                osc.stop(now + attackTime + decayTime + sustainTime + releaseTime);
+            });
+        });
+        
+        // Add some stereo imaging with a slight delay between left and right
+        this.addStereoImaging(frequencies, now, attackTime, decayTime, sustainTime, releaseTime, sustainLevel);
+    }
+    
+    addStereoImaging(frequencies, startTime, attackTime, decayTime, sustainTime, releaseTime, sustainLevel) {
+        if (!this.audioContext) return;
+        
+        // Create stereo spread effect
+        const splitter = this.audioContext.createChannelSplitter(2);
+        const merger = this.audioContext.createChannelMerger(2);
+        const leftDelay = this.audioContext.createDelay(0.05);
+        const rightDelay = this.audioContext.createDelay(0.05);
+        
+        leftDelay.delayTime.setValueAtTime(0.003, startTime); // 3ms delay
+        rightDelay.delayTime.setValueAtTime(0.007, startTime); // 7ms delay
+        
+        frequencies.forEach((freq, index) => {
+            if (index % 2 === 0) return; // Only process some frequencies for stereo width
+            
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            const filter = this.audioContext.createBiquadFilter();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq * 2, startTime); // One octave up
+            
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(400, startTime);
+            
+            osc.connect(gain);
+            gain.connect(filter);
+            filter.connect(splitter);
+            
+            splitter.connect(leftDelay, 0);
+            splitter.connect(rightDelay, 1);
+            
+            leftDelay.connect(merger, 0, 0);
+            rightDelay.connect(merger, 0, 1);
+            
+            merger.connect(this.audioContext.destination);
+            
+            // Softer envelope for stereo layer
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.05, startTime + attackTime);
+            gain.gain.linearRampToValueAtTime(sustainLevel * 0.05, startTime + attackTime + decayTime);
+            gain.gain.setValueAtTime(sustainLevel * 0.05, startTime + attackTime + decayTime + sustainTime);
+            gain.gain.linearRampToValueAtTime(0, startTime + attackTime + decayTime + sustainTime + releaseTime);
+            
+            osc.start(startTime);
+            osc.stop(startTime + attackTime + decayTime + sustainTime + releaseTime);
+        });
+    }
+    
     updateCurrentProgression() {
         if (!this.currentProgression && this.customChords.length === 0) return;
         
@@ -1684,7 +2212,7 @@ class ChordProgressionApp {
             chordItem.className = 'chord-item';
             
             let content = '';
-
+            
             if (this.viewModes.includes('chords')) {
                 content += `<div class="chord-item-view chord-name">${chord}</div>`;
             }
@@ -1736,7 +2264,7 @@ class ChordProgressionApp {
         
         const title = document.createElement('div');
         title.className = 'chord-diagram-title';
-        title.textContent = chordName;
+        title.textContent = this.formatChordName(chordName);
         
         const chordDef = chordDefinitions[chordName];
         if (!chordDef) {
@@ -1832,6 +2360,10 @@ class ChordProgressionApp {
         container.appendChild(svg);
         
         return container;
+    }
+    
+    formatChordName(chordName) {
+        return chordName.replace(/b/g, '♭').replace(/#/g, '♯');
     }
 }
 
